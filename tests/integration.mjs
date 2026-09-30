@@ -128,8 +128,16 @@ test("real Agent Wiki article workflow and native OAuth use no trace authority",
   let nativeOutput = "";
   let nativeAuthorized = false;
   let approvalTask;
-  const child = spawn("python3", [helper, "connect", origin, "--allow-local-http", "--codex-home", home], { env, cwd: home, stdio: ["ignore", "pipe", "pipe"] });
-  t.after(() => child.kill());
+  const child = spawn("python3", [helper, "connect", origin, "--allow-local-http", "--codex-home", home], { env, cwd: home, detached: true, stdio: ["ignore", "pipe", "pipe"] });
+  let nativeClosed = false;
+  child.once("close", () => { nativeClosed = true; });
+  const stopNative = () => {
+    if (!nativeClosed) {
+      try { process.kill(-child.pid, "SIGKILL"); }
+      catch (error) { if (error.code !== "ESRCH") throw error; }
+    }
+  };
+  t.after(stopNative);
   const inspect = (bytes) => {
     nativeOutput += bytes.toString();
     if (nativeAuthorized) return;
@@ -148,14 +156,14 @@ test("real Agent Wiki article workflow and native OAuth use no trace authority",
   };
   child.stdout.on("data", inspect);
   child.stderr.on("data", inspect);
-  const timer = setTimeout(() => child.kill("SIGTERM"), 30000);
+  const timer = setTimeout(stopNative, 30000);
   const [exitCode] = await once(child, "close");
   clearTimeout(timer);
   await approvalTask;
   assert.ok(nativeAuthorized, "Native OAuth did not present an authorization URL.");
   assert.equal(exitCode, 0, "Native setup/authentication failed; inspect the isolated fixture, not real credentials.");
   assert.match(nativeOutput, /native_login_completed/);
-  const disconnect = spawnSync("python3", [helper, "disconnect", "--codex-home", home], { env, cwd: home, encoding: "utf8" });
+  const disconnect = spawnSync("python3", [helper, "disconnect", "--codex-home", home], { env, cwd: home, encoding: "utf8", timeout: 15000, killSignal: "SIGKILL" });
   assert.equal(disconnect.status, 0, disconnect.stdout);
   assert.equal(JSON.parse(disconnect.stdout).state, "disconnected");
   assert.equal(fs.readFileSync(path.join(home, "config.toml"), "utf8").trim(), 'mcp_oauth_credentials_store = "file"');
