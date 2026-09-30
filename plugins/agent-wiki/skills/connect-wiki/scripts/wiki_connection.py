@@ -184,7 +184,11 @@ def managed_range(text: str, name: str) -> tuple[int, int] | None:
         return None
     if len(starts) != 1 or len(ends) != 1 or starts[0] >= ends[0]:
         raise SetupError("CONFIG_CONFLICT", "Connection markers are ambiguous; configuration was not changed.")
-    return sum(map(len, lines[:starts[0]])), sum(map(len, lines[:ends[0] + 1]))
+    # Native TOML editors can append new tables before the trailing comment.
+    # Own only our first table; preserve any later table even inside the markers.
+    tables = [i for i in range(starts[0] + 1, ends[0]) if re.match(r"^[ \t]*\[", lines[i])]
+    stop = tables[1] if len(tables) > 1 else ends[0] + 1
+    return sum(map(len, lines[:starts[0]])), sum(map(len, lines[:stop]))
 
 
 def inspect_connection(text: str, parsed: dict, name: str) -> tuple[dict | None, tuple[int, int] | None]:
@@ -305,7 +309,17 @@ def disconnect(home: Path, name: str) -> dict:
         existing, span = inspect_connection(text, parsed, name)
         if existing is None or existing["url"] != before["endpoint"]:
             raise SetupError("CONFIG_CHANGED", "Connection changed during logout. Configuration was not removed.")
-        atomic_config(path, text, text[:span[0]] + text[span[1]:])
+        updated = text[:span[0]] + text[span[1]:]
+        # A native writer may have moved the closing comment past other tables.
+        closing = markers(name)[1]
+        updated = "".join(line for line in updated.splitlines(keepends=True) if line.rstrip("\r\n") != closing)
+        expected = {**parsed, "mcp_servers": {key: value for key, value in parsed["mcp_servers"].items() if key != name}}
+        actual = tomllib.loads(updated)
+        if actual.get("mcp_servers") is None and not expected["mcp_servers"]:
+            expected.pop("mcp_servers")
+        if actual != expected:
+            raise SetupError("CONFIG_CONFLICT", "Removing this connection would change unrelated settings; configuration was preserved.")
+        atomic_config(path, text, updated)
     return {"state": "disconnected", "name": name, "changed": True}
 
 

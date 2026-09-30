@@ -91,6 +91,21 @@ class ConfigurationTests(unittest.TestCase):
         connection.configure(self.home, "agent_wiki", self.url)
         self.assertTrue(self.path.read_bytes().startswith(original))
 
+    def test_native_appended_tables_inside_markers_are_preserved(self):
+        connection.configure(self.home, "agent_wiki", self.url)
+        closing = connection.markers("agent_wiki")[1]
+        unrelated = '[projects."/synthetic/workspace"]\ntrust_level = "trusted"\n\n[plugins."agent-wiki@agent-wiki-plugins"]\nenabled = true\n'
+        self.path.write_text(self.path.read_text().replace(closing, unrelated + closing))
+        before = self.path.read_bytes()
+        self.assertEqual(connection.status(self.home, "agent_wiki")["state"], "configured")
+        self.assertFalse(connection.configure(self.home, "agent_wiki", self.url)["changed"])
+        self.assertEqual(self.path.read_bytes(), before)
+        with patch.object(connection, "native_auth"):
+            self.assertEqual(connection.disconnect(self.home, "agent_wiki")["state"], "disconnected")
+        self.assertIn(unrelated, self.path.read_text())
+        self.assertNotIn("agent-wiki-plugin:agent_wiki", self.path.read_text())
+        self.assertEqual(tomllib.loads(self.path.read_text()), tomllib.loads(unrelated))
+
     def test_unmanaged_server_and_inline_table_conflict_preserve_bytes(self):
         for original in (
             '[mcp_servers.agent_wiki]\nurl = "https://existing.example/mcp"\n',
