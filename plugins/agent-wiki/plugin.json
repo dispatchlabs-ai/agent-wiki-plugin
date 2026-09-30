@@ -1,0 +1,19 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "agent-wiki",
+  "version": "0.1.0-alpha.1",
+  "description": "Use your self-hosted Agent Wiki as durable memory through deliberate article edits, without uploading conversations or traces.",
+  "author": { "name": "Chris Reynolds", "url": "https://github.com/chrisbyboston" },
+  "license": "MIT",
+  "homepage": "https://github.com/dispatchlabs-ai/agent-wiki-plugin",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Agent Wiki",
+        "shortDescription": "Useful knowledge in a wiki you own",
+        "defaultPrompt": "Connect my own Agent Wiki and use it as durable memory during our work."
+      },
+      "onboardingSkill": "./skills/connect-wiki/SKILL.md"
+    }
+  }
+}
