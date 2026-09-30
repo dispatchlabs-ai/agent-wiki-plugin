@@ -106,6 +106,16 @@ class ConfigurationTests(unittest.TestCase):
         self.assertNotIn("agent-wiki-plugin:agent_wiki", self.path.read_text())
         self.assertEqual(tomllib.loads(self.path.read_text()), tomllib.loads(unrelated))
 
+    def test_disconnect_preserves_another_connections_markers(self):
+        first = connection.block("agent_wiki", self.url)
+        second = connection.block("team_wiki", "https://team.example/mcp")
+        self.path.write_text(first.replace(connection.markers("agent_wiki")[1], second + connection.markers("agent_wiki")[1]))
+        self.assertEqual(connection.status(self.home, "team_wiki")["state"], "configured")
+        with patch.object(connection, "native_auth"):
+            connection.disconnect(self.home, "agent_wiki")
+        self.assertIn(second, self.path.read_text())
+        self.assertEqual(connection.status(self.home, "team_wiki")["state"], "configured")
+
     def test_unmanaged_server_and_inline_table_conflict_preserve_bytes(self):
         for original in (
             '[mcp_servers.agent_wiki]\nurl = "https://existing.example/mcp"\n',

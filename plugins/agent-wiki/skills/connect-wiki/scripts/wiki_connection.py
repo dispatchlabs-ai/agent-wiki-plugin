@@ -188,6 +188,11 @@ def managed_range(text: str, name: str) -> tuple[int, int] | None:
     # Own only our first table; preserve any later table even inside the markers.
     tables = [i for i in range(starts[0] + 1, ends[0]) if re.match(r"^[ \t]*\[", lines[i])]
     stop = tables[1] if len(tables) > 1 else ends[0] + 1
+    if len(tables) > 1:
+        # Comments before the next table may be another helper's ownership
+        # marker. Preserve that preamble, not just its parsed TOML values.
+        while stop > tables[0] + 1 and (not lines[stop - 1].strip() or lines[stop - 1].lstrip().startswith("#")):
+            stop -= 1
     return sum(map(len, lines[:starts[0]])), sum(map(len, lines[:stop]))
 
 
