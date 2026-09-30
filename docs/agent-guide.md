@@ -23,6 +23,8 @@ For a source checkout or a pinned tag:
 ```sh
 git clone https://github.com/dispatchlabs-ai/agent-wiki-plugin.git
 cd agent-wiki-plugin
+# Optional: pin the published source alpha before adding the local marketplace.
+git checkout v0.1.0-alpha.1
 codex plugin marketplace add .
 codex plugin add agent-wiki@agent-wiki-plugins
 ```
