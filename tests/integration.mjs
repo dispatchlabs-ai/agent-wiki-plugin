@@ -23,6 +23,25 @@ test("real Agent Wiki article workflow and native OAuth use no trace authority",
     load("control-store.mjs"), load("agent-store.mjs"), load("remote-agents.mjs"), load("server.mjs"), load("git-wiki.mjs"),
   ]);
   const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "wiki-plugin-integration-"));
+  let app, listener, control;
+  t.after(async () => {
+    if (app) await new Promise((resolve) => { app.close(resolve); app.closeAllConnections(); });
+    if (listener) await new Promise((resolve) => listener.close(resolve));
+    control?.close();
+    fs.rmSync(temporary, { recursive: true, force: true });
+  });
+  // git -C does not override inherited GIT_DIR/GIT_WORK_TREE. Keep every
+  // engine Git call inside this fixture and prevent ambient hooks/templates.
+  for (const key of Object.keys(process.env)) {
+    if (key.startsWith("GIT_")) delete process.env[key];
+  }
+  const gitEmpty = path.join(temporary, "empty-git-config");
+  fs.mkdirSync(gitEmpty);
+  Object.assign(process.env, {
+    GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: "/dev/null",
+    GIT_CONFIG_SYSTEM: "/dev/null", GIT_TEMPLATE_DIR: gitEmpty,
+    GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.hooksPath", GIT_CONFIG_VALUE_0: gitEmpty,
+  });
   const repo = path.join(temporary, "content");
   const home = path.join(temporary, "native-client");
   fs.mkdirSync(path.join(repo, "wiki"), { recursive: true });
@@ -34,28 +53,22 @@ test("real Agent Wiki article workflow and native OAuth use no trace authority",
   fs.writeFileSync(path.join(repo, "wiki/cedar.md"), markdown({ title: "Cedar recovery", description: "Synthetic deployment guide", topic: "Operations", custom: { keep: true } }, "Cedar runs on port 8080.\n"));
   git(repo, ["add", "."]);
   git(repo, ["commit", "-m", "Add synthetic guide"]);
-  const control = new ControlStore(path.join(temporary, "control.sqlite3"));
+  control = new ControlStore(path.join(temporary, "control.sqlite3"));
   const owner = control.bootstrap({ issuer: "https://identity.example.invalid", subject: "synthetic-owner", name: "Synthetic owner" });
   const agents = new AgentStore(control);
   // The definition deliberately includes a trace tool; narrowed OAuth scope must still hide it.
   const actor = agents.create(owner, { name: "Synthetic editor", definition: { instructions: "Maintain synthetic articles.", tools: [...allowed, "wiki.traceSearch"] } });
   control.grant(owner, actor.id, "editor");
-  const listener = createServer();
+  listener = createServer();
   listener.listen(0, "127.0.0.1");
   await once(listener, "listening");
   const origin = `http://127.0.0.1:${listener.address().port}`;
-  const app = createWiki({ repo, origin, control, write: true, development: true, traces: null, evidenceUrl: null, articleMediaRoot: null });
+  app = createWiki({ repo, origin, control, write: true, development: true, traces: null, evidenceUrl: null, articleMediaRoot: null });
   app.listen(listener);
   await once(app, "listening");
   const remote = new RemoteAgents(agents, origin);
   const requests = [];
   app.on("request", (req) => { requests.push({ method: req.method, path: new URL(req.url, origin).pathname }); });
-  t.after(async () => {
-    await new Promise((resolve) => { app.close(resolve); app.closeAllConnections(); });
-    await new Promise((resolve) => listener.close(resolve));
-    control.close();
-    fs.rmSync(temporary, { recursive: true, force: true });
-  });
 
   const registration = remote.register({ client_name: "Synthetic integration", redirect_uris: ["http://127.0.0.1:8765/callback"], token_endpoint_auth_method: "none" });
   const verifier = "v".repeat(64);

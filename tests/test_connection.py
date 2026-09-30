@@ -238,10 +238,17 @@ class ProbeTests(unittest.TestCase):
 
     def test_deeply_nested_untrusted_json_has_structured_error(self):
         import io
-        response = io.BytesIO(b"[" * 20000 + b"0" + b"]" * 20000)
+        response = io.BytesIO(b"[" * 200000 + b"0" + b"]" * 200000)
         response.headers = {"Content-Type": "application/json"}
         with patch.object(connection.urllib.request, "build_opener") as build:
             build.return_value.open.return_value = response
+            with self.assertRaises(connection.SetupError) as raised:
+                connection.probe(self.endpoint)
+        self.assertEqual(raised.exception.code, "NOT_MCP")
+
+        # JSON depth limits differ between Python versions; exercise the error
+        # mapping deterministically as well as the actual untrusted response.
+        with patch.object(connection.urllib.request, "build_opener"), patch.object(connection, "initialization_response", side_effect=RecursionError):
             with self.assertRaises(connection.SetupError) as raised:
                 connection.probe(self.endpoint)
         self.assertEqual(raised.exception.code, "NOT_MCP")
