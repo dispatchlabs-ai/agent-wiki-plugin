@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add client-neutral shared-memory instructions and link them from the setup guide, distinguishing ongoing article maintenance from connection setup and access grants.
+
 ## 0.1.0-alpha.1 — 2026-09-30
 
 Initial source alpha:

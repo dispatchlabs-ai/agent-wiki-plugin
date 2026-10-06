@@ -74,6 +74,10 @@ In a fresh native client session:
 
 Configuration, native sign-in, tool discovery, and a successful article operation are separate checkpoints. Report which completed. A local successful connection does not establish ChatGPT web/mobile availability.
 
+## Use the wiki across chats
+
+After verifying the connection, point the user to the [shared-memory instruction block](../README.md#use-agent-wiki-as-shared-memory). It is client-neutral: merge it into the persistent global or project instructions supported by the user's agent, preserving existing guidance. It opts into useful article maintenance during normal work; it does not configure authentication, grant server permissions, or enable background collection. When multiple wikis are connected, record the intended project-to-wiki choice alongside the block. Load the updated instructions using that client's supported flow.
+
 ## Update and disconnect
 
 Refresh the tracked repository marketplace with `codex plugin marketplace upgrade agent-wiki-plugins`, then use your client's plugin update/reinstall flow and start a new session. The native connection settings are outside the plugin package and survive updates. Check release notes before upgrading.
