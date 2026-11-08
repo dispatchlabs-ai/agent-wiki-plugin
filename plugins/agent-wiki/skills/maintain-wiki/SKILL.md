@@ -21,7 +21,7 @@ Write a concise, deliberate article contribution in your own words. Do not send 
 
 ## Save reliably
 
-Before editing, read the complete current article with `wiki.read` and retain its revision identity. Partial section reads are useful for research but insufficient for replacing the full article. Preserve unrelated content and metadata. Use the current server-provided schemas; [the write reference](references/writing.md) explains revision conflicts, retries, and publication outcomes.
+For a targeted change on a server offering `wiki.edit`, read the relevant section and send only the change; see `references/writing.md`. `wiki.delete` removes an article and repairs links to it. For a full save, read the complete current article with `wiki.read` and retain its revision identity. Partial section reads are useful for research but insufficient for replacing the full article. Preserve unrelated content and metadata. Use the current server-provided schemas; [the write reference](references/writing.md) explains revision conflicts, retries, and publication outcomes.
 
 Use `wiki.preview` when checking a meaningful formatting change. Save through `wiki.save` with the expected revision and a new operation ID. On a stale-revision conflict, reread and reconcile the intended change. On an uncertain result, retry the identical operation with the same ID; never guess whether the first write committed.
 

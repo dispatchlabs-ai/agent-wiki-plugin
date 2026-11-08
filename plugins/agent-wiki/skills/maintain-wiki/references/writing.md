@@ -2,7 +2,26 @@
 
 Agent Wiki owns authorization, storage, and retry behavior. Discover the current schema instead of assuming the example below matches every server release. The first alpha targets the Agent Wiki v0.8.17 article interface.
 
-For an existing article, obtain a complete `wiki.read` result immediately before editing. Preserve its current title, description, topic, related links, questions, body, and other fields unless the task calls for a change. Pass the returned `revision_id` as `expected_revision_id`. For a new article use `null`, after checking for existing coverage and an ID collision.
+## Targeted edits
+
+When the server offers `wiki.edit`, use it to change part of an existing article. Send only the change; the article's other text and metadata are preserved:
+
+```json
+{
+  "operation_id": "a-new-unique-identifier",
+  "id": "article-id",
+  "summary": "Correct the rollback owner.",
+  "edits": [{ "old_text": "exact current text", "new_text": "replacement text" }]
+}
+```
+
+`old_text` must match exactly once, so include enough surrounding text to make it unique, or set `replace_all`. Use `{ "section": "anchor", "new_text": "..." }` with `expected_revision_id` to replace a section and its subsections, including the heading, or `{ "append": "...", "section": "anchor" }` to add text. Get anchors from `wiki.read` with `fields: ["sections"]`. A partial read of the relevant section is enough. If `old_text` is not found, read the current text again rather than guessing.
+
+When the server offers `wiki.delete`, use it to remove an article. Links to it in other articles are repaired in the same commit, as plain text or to `replace_with` when another article now covers the subject; report the repaired articles listed in the receipt. Git retains the history.
+
+## Full saves
+
+Use `wiki.save` for new articles, full rewrites, and servers without `wiki.edit`. For an existing article, obtain a complete `wiki.read` result immediately before editing. Preserve its current title, description, topic, related links, questions, body, and other fields unless the task calls for a change. Pass the returned `revision_id` as `expected_revision_id`. For a new article use `null`, after checking for existing coverage and an ID collision.
 
 An ordinary save has this shape:
 
